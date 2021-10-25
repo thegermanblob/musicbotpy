@@ -58,6 +58,12 @@ class MusicTools(commands.Cog):
         """ init """
         self.bot = bot
 
+    async def audio_player_task():
+        while True:
+            play_next_song.clear()
+            current = await songs.get()
+            current.start()
+            await play_next_song.wait()
 
     def toggle_next(self):
         self.bot.loop.call_soon_threadsafe(play_next_song.set)
@@ -135,6 +141,8 @@ class MusicTools(commands.Cog):
     async def stop(self, ctx):
         voice = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
         voice.stop()
+    
+    bot.loop.create_task(audio_player_task())
 
 def setup(bot: Bot):
     """ Adds commads to bot"""
