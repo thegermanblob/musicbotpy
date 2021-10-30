@@ -156,8 +156,4 @@ class MusicTools(commands.Cog):
 def setup(bot: Bot):
     """ Adds commads to bot"""
     bot.loop.create_task(MusicTools.audio_player_task())
-<<<<<<< HEAD
     bot.add_cog(MusicTools(bot))
-=======
-    bot.add_cog(MusicTools(bot))
->>>>>>> a89857b73a74afc36b58920822927e46e41c163b
