@@ -1,5 +1,6 @@
 import os
 from posix import listdir
+from typing import TYPE_CHECKING
 import discord
 from discord import guild
 from discord.abc import User
@@ -44,15 +45,17 @@ class YTDLSource(discord.PCMVolumeTransformer):
             data = data['entries'][0]
 
         filename = data['url'] if stream else ytdl.prepare_filename(data)
-        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+        bob = cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+        print(type(bob))
+        return bob
 
     
 play_next_song = asyncio.Event()
+queue = {} 
 
 class MusicTools(commands.Cog):
     """ Contains all Set up commands """
 
-    queue = {}
 
     def __init__(self, bot: Bot) -> None:
         """ init """
@@ -61,12 +64,16 @@ class MusicTools(commands.Cog):
     async def audio_player_task():
         while True:
             play_next_song.clear()
-            current = await songs.get()
-            current.start()
+            try:
+                current = await queue.get()
+                current.start()
+            except TypeError:
+                pass
             await play_next_song.wait()
 
-    def toggle_next(self):
+    def toggle_next(self, ctx=None):
         self.bot.loop.call_soon_threadsafe(play_next_song.set)
+    
     def NameToUrl(self, name: list):
         """ Receives name  turns it to url """
         name = name.split(" ")
@@ -82,17 +89,18 @@ class MusicTools(commands.Cog):
         """ Adds song to the queue"""
         if not validators.url(song):
             song = self.NameToUrl(song)
-        if guild.id not in self.queue:   
-            self.queue[guild.id] = asyncio.Queue()
+        if guild.id not in queue:   
+            queue[guild.id] = asyncio.Queue()
         player = await YTDLSource.from_url(song, loop=self.bot.loop, stream=True)
-        await self.queue[guild.id].put(player)
+        print(type(player))
+        await queue[guild.id].put(player)
         print(f"Added :{song}")
 
     async def play_song(self, ctx:Context, vc):
         """ does the actual playing of songs """
-        vc.play(self.queue[ctx.guild.id][0], after=self.toggle_next)
-        play = self.queue[ctx.guild.id][0]
-        await ctx.send('**Now playing:** {}'.format(play.title))
+        player = await queue[ctx.guild.id].get()
+        vc.play(player, after=self.toggle_next)
+        await ctx.send('**Now playing:** {}'.format(player.title))
 
 
 
@@ -113,6 +121,8 @@ class MusicTools(commands.Cog):
     @commands.command(name="playnext")
     async def playnext(self, ctx:Context):
         """ Plays the next song in the queue """
+        vc = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
+        vc.stop()
 
     @commands.command(name="addqueue")
     async def addqueue(self, ctx:Context):
@@ -142,8 +152,8 @@ class MusicTools(commands.Cog):
         voice = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
         voice.stop()
     
-    bot.loop.create_task(audio_player_task())
 
 def setup(bot: Bot):
     """ Adds commads to bot"""
+    bot.loop.create_task(MusicTools.audio_player_task())
     bot.add_cog(MusicTools(bot))
