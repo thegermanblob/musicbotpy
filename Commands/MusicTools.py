@@ -142,8 +142,8 @@ class MusicTools(commands.Cog):
         voice = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
         voice.stop()
     
-    bot.loop.create_task(audio_player_task())
 
 def setup(bot: Bot):
     """ Adds commads to bot"""
+    bot.loop.create_task(MusicTools.audio_player_task())
     bot.add_cog(MusicTools(bot))
