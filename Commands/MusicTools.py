@@ -83,7 +83,7 @@ class MusicTools(commands.Cog):
             return name
         html = urllib.request.urlopen("https://www.youtube.com/results?search_query=" + name)
         video_ids = re.findall(r"watch\?v=(\S{11})", html.read().decode())
-        return("https://www.youtube.com/watch?v=" + video_ids[0])
+        return("https://www.youtube.com/watch?v=" + video_ids[1])
 
     async def add_queue(self, guild:guild,  song: str):
         """ Adds song to the queue"""
@@ -123,6 +123,7 @@ class MusicTools(commands.Cog):
         """ Plays the next song in the queue """
         vc = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
         vc.stop()
+        await self.play_song(ctx, vc)
 
     @commands.command(name="addqueue")
     async def addqueue(self, ctx:Context):
