@@ -36,16 +36,20 @@ class SoundBoard(commands.Cog):
         except:
             voice.play(discord.FFmpegOpusAudio("./sounds/mopowa.mp3"))
 
-    @commands.command(name="gsucc")
+    @commands.command(name="gsucc") #!this is the template for a soundboard command for now
     async def gsucc(self, ctx: Context):
         """ Plays given url from youtube """
         voice_channel = ctx.author.voice.channel
-        voice = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
         try:
             vc = await voice_channel.connect()
+        except:
+            vc = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
+        try:
             vc.play(discord.FFmpegOpusAudio("./sounds/gsucc.mp3"))
         except:
-            voice.play(discord.FFmpegOpusAudio("./sounds/gsucc.mp3"))
+            await ctx.send("Can't while playing music, sorry")
+
+
 
     @commands.command(name="uwa")
     async def uwa(self, ctx: Context):
