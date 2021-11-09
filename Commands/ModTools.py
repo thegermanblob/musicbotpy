@@ -1,4 +1,4 @@
-
+import re
 import discord
 import asyncio
 from discord.ext import commands
@@ -70,6 +70,16 @@ class ModTools(commands.Cog):
                 await vc.disconnect()
             except:
                 voice.play(discord.FFmpegOpusAudio('sounds/userleft.mp3'))
+    
+
+    def name_check(name):
+        """ Checks naming convention """
+        if not (re.match(r"[A-Z]\w* \w*", name)):
+            return False
+        
+        
+
+            
 
 
 def setup(bot : Bot):

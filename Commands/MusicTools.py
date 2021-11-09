@@ -60,20 +60,45 @@ class MusicTools(commands.Cog):
     def __init__(self, bot: Bot) -> None:
         """ init """
         self.bot = bot
+        for guild in bot.guilds:
+            print(guild.id)
+            queue[guild.id] = asyncio.Queue()
 
-    async def audio_player_task():
+    async def audio_player_task(self, id):
         while True:
             play_next_song.clear()
-            try:
-                current = await queue.get()
-                current.start()
-            except TypeError:
-                pass
+            current = await queue[id].get() 
+            current.start() #! causes error
             await play_next_song.wait()
 
     def toggle_next(self, ctx=None):
         self.bot.loop.call_soon_threadsafe(play_next_song.set)
     
+
+    async def add_queue(self, guild:guild,  song: str, vc):
+        """ Adds song to the queue"""
+        if not validators.url(song):
+            song = self.NameToUrl(song)
+        if guild.id not in queue:   
+            queue[guild.id] = asyncio.Queue()
+        player = await YTDLSource.from_url(song, loop=self.bot.loop, stream=True)
+        print(type(player))
+        print(f"Added :{song}")
+        if not vc.is_playing():
+            await queue[guild.id].put(vc.play(player))
+            self.toggle_next()
+
+        else:
+            await queue[guild.id].put(player)
+            self.toggle_next()
+
+    async def play_song(self, ctx:Context, vc):
+        """ does the actual playing of songs """
+        player = await queue[ctx.guild.id].get()
+        vc.play(player, after=self.toggle_next())
+        await ctx.send('**Now playing:** {}'.format(player.title))
+
+
     def NameToUrl(self, name: list):
         """ Receives name  turns it to url """
         name = name.split(" ")
@@ -85,38 +110,24 @@ class MusicTools(commands.Cog):
         video_ids = re.findall(r"watch\?v=(\S{11})", html.read().decode())
         return("https://www.youtube.com/watch?v=" + video_ids[1])
 
-    async def add_queue(self, guild:guild,  song: str):
-        """ Adds song to the queue"""
-        if not validators.url(song):
-            song = self.NameToUrl(song)
-        if guild.id not in queue:   
-            queue[guild.id] = asyncio.Queue()
-        player = await YTDLSource.from_url(song, loop=self.bot.loop, stream=True)
-        print(type(player))
-        await queue[guild.id].put(player)
-        print(f"Added :{song}")
-
-    async def play_song(self, ctx:Context, vc):
-        """ does the actual playing of songs """
-        player = await queue[ctx.guild.id].get()
-        vc.play(player, after=self.toggle_next)
-        await ctx.send('**Now playing:** {}'.format(player.title))
-
-
-
     @commands.command(name="play")
     async def play(self, ctx: Context):
         """ Plays given url from youtube """
-
-        voice_channel = discord.utils.get(ctx.guild.voice_channels, name='smoke shack')
-        await self.add_queue(ctx.guild, ctx.message.content)
+        if ctx.author.voice is None:
+            await ctx.send("You're not in a voice channel")
+            return
+        voice_channel = ctx.author.voice.channel
 
         try:
             vc = await voice_channel.connect()
         except:
             vc = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
         async with ctx.typing():
-            await self.play_song(ctx, vc)
+
+            await self.add_queue(ctx.guild, ctx.message.content, vc)
+            #await self.play_song(ctx, vc)
+        
+            self.bot.loop.create_task(self.audio_player_task(ctx.guild.id))
     
     @commands.command(name="playnext")
     async def playnext(self, ctx:Context):
@@ -124,11 +135,12 @@ class MusicTools(commands.Cog):
         vc = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
         vc.stop()
         await self.play_song(ctx, vc)
+        self.toggle_next()
 
     @commands.command(name="addqueue")
     async def addqueue(self, ctx:Context):
         """ Recieves song to add to queue """
-        await self.add_queue(ctx.guild, ctx.message.content)
+        await self.add_queue(ctx.guild, ctx.message.content, discord.utils.get(self.bot.voice_clients, guild=ctx.guild))
 
     
     @commands.command(name="pause")
@@ -156,5 +168,4 @@ class MusicTools(commands.Cog):
 
 def setup(bot: Bot):
     """ Adds commads to bot"""
-    bot.loop.create_task(MusicTools.audio_player_task())
     bot.add_cog(MusicTools(bot))
